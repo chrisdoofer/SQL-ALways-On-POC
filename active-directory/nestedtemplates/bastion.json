@@ -1,0 +1,173 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "bastionpublicIpAddressName": {
+        "type": "string",
+        "metadata": {
+          "Description": "The name of the Virtual Network to Create"
+        }
+      },
+      "bastionHostSku": {
+        "type": "string",
+        "metadata": {
+          "Description": "The Bastion SKU which is either Basic or Standard"
+        },
+        "defaultValue": "standard"
+      },
+      "bastionHostName": {
+        "type": "string",
+        "metadata": {
+          "Description": "The name of the name of the Bastion resource"
+        }
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "defaultValue": "adVNET",
+        "metadata": {
+          "Description": "The name of the virtual network"
+        }
+      },
+      "virtualNetworkAddressRange": {
+        "type": "string",
+        "metadata": {
+          "Description": "The CIDR of the virtual network"
+        }
+      },
+      "enableIpConnect": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+          "Description": "Enable/Disable IP Connect feature of the Bastion Host resource"
+        }
+      },
+      "enableTunneling": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+          "Description": "Enable/Disable Tunneling feature of the Bastion Host resource"
+        }
+      },
+      "enableKerberos": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+          "Description": "Enable/Disable Kerberos feature of the Bastion Host resource"
+        }
+      },
+      "disableCopyPaste": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+          "Description": "Enable/Disable Copy/Paste feature of the Bastion Host resource"
+        }
+      },
+      "bastionSubnetId": {
+      "type": "string",
+      "defaultValue": "10.0.1.0/27",
+      "metadata": {
+        "description": "Bastion subnet IP prefix MUST be within vnet IP prefix address space"
+      }
+    },
+    "vnetNewOrExisting": {
+      "type": "string",
+      "defaultValue": "existing",
+      "allowedValues": [
+        "new",
+        "existing"
+      ],
+      "metadata": {
+        "description": "Specify whether to provision new vnet or deploy to existing vnet"
+      }
+    },
+      "location": {
+        "type": "string",
+        "metadata": {
+          "description": "Location for all resources."
+        }
+    }  
+},
+"variables": {
+    "bastionSubnetName": "AzureBastionSubnet"
+},
+"resources": [
+{
+    "type": "Microsoft.Network/publicIpAddresses",
+    "apiVersion": "2020-08-01",
+    "name": "[parameters('bastionpublicIpAddressName')]",
+    "location": "[parameters('location')]",
+    "tags": {},
+    "sku": {
+        "name": "Standard"
+    },
+    "properties": {
+        "publicIPAllocationMethod": "Static"
+    }
+},
+{
+      "condition": "[equals(parameters('vnetNewOrExisting'), 'new')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2020-05-01",
+      "name": "[parameters('virtualNetworkName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('virtualNetworkAddressRange')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('bastionSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('bastionSubnetId')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[equals(parameters('virtualNetworkName'), 'existing')]",
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-05-01",
+      "name": "[format('{0}/{1}', parameters('virtualNetworkName'), variables('bastionSubnetName'))]",
+      "properties": {
+        "addressPrefix": "[parameters('bastionSubnetId')]"
+      }
+    },
+{
+    "type": "Microsoft.Network/bastionHosts",
+    "apiVersion": "2020-11-01",
+    "name": "[parameters('bastionHostName')]",
+    "location": "[parameters('location')]",
+    "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', parameters('bastionpublicIpAddressName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('bastionSubnetName'))]"
+    ],
+    "tags": {},
+    "sku": {
+        "name": "[parameters('bastionHostSku')]"
+    },
+    "properties": {
+        "enableIpConnect": "[parameters('enableIpConnect')]",
+        "enableTunneling": "[parameters('enableTunneling')]",
+        "enableKerberos": "[parameters('enableKerberos')]",
+        "disableCopyPaste": "[parameters('disableCopyPaste')]",
+        "ipConfigurations": [
+            {
+                "name": "IpConf",
+                "properties": {
+                    "subnet": {
+                        "id": "[parameters('bastionsubnetId')]"
+                    },
+                    "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIpAddresses', parameters('bastionpublicIpAddressName'))]"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

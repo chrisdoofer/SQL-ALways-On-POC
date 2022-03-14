@@ -76,7 +76,11 @@
         "adBDCPreparationModulesURL": "[uri(parameters('_artifactsLocation'), concat('DSC/PrepareADBDC.zip', parameters('_artifactsLocationSasToken')))]",
         "adBDCPreparationFunction": "PrepareADBDC.ps1\\PrepareADBDC",
         "adBDCConfigurationModulesURL": "[uri(parameters('_artifactsLocation'), concat('DSC/ConfigureADBDC.zip', parameters('_artifactsLocationSasToken')))]",
-        "adBDCConfigurationFunction": "ConfigureADBDC.ps1\\ConfigureADBDC"
+        "adBDCConfigurationFunction": "ConfigureADBDC.ps1\\ConfigureADBDC",
+        "bastionTemplateUri": "[uri(parameters('_artifactsLocation'), concat('nestedtemplates/bastion.json', parameters('_artifactsLocationSasToken')))]",
+        "bastionHostName": "sqlpocbastion",
+        "bastionsubnetid": "10.0.1.0/27",
+        "bastionpublicIpAddressName":  "[format('{0}-pip', variables('bastionHostName'))]"
     },
     "resources": [
         {
@@ -95,7 +99,7 @@
         {
             "name": "VNet",
             "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2019-09-01",
+            "apiVersion": "2021-04-01",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -117,6 +121,38 @@
                     },
                     "subnetRange": {
                         "value": "[variables('adSubnet')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "Bastion-vNet-Changes",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('bastionTemplateUri')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "virtualNetworkName": {
+                        "value": "[variables('virtualNetworkName')]"
+                    },
+                     "virtualNetworkAddressRange": {
+                        "value": "[variables('virtualNetworkAddressRange')]"
+                    },
+                    "bastionHostName": {
+                        "value": "[variables('bastionHostName')]"
+                    },
+                    "bastionsubnetid": {
+                        "value": "[variables('bastionsubnetid')]"
+                    },
+                    "bastionpublicIpAddressName": {
+                        "value": "[variables('bastionpublicIpAddressName')]"
                     }
                 }
             }
